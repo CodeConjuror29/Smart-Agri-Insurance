@@ -1,0 +1,9 @@
+# Node modules
+node_modules/
+# Hardhat / Truffle artifacts
+artifacts/
+cache/
+# Environment variables
+.env
+# VSCode settings
+.vscode/
