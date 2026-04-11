@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log
+
+# Env files
+.env
+.env.*
+
+# Build / artifacts
+artifacts/*.log
+
+# OS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Misc
+coverage/
+dist/

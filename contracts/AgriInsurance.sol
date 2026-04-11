@@ -1,48 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract AgriInsurance {
+contract SimpleAgriInsurance {
 
     address public admin;
     address public oracle;
 
-    constructor(address _oracle) {
-        admin = msg.sender;
-        oracle = _oracle;
-    }
-
-    enum PolicyStatus {
-        Created,
-        Active,
-        PaidOut,
-        Expired
-    }
+    enum Status { Active, PaidOut }
 
     struct Policy {
         address farmer;
-        string crop;
-        string location;
-        uint256 seasonStart;
-        uint256 seasonEnd;
-        uint256 premium;
         uint256 insuredAmount;
-        uint256 minRainfall;
-        uint256 maxRainfall;
+        uint256 rainfallThreshold;
         uint256 recordedRainfall;
-        PolicyStatus status;
+        Status status;
+        bool exists;
     }
 
-    uint256 public policyCounter;
+    Policy public policy;
 
-    mapping(uint256 => Policy) public policies;
-
-    event PolicyCreated(uint256 policyId, address farmer);
-    event PremiumPaid(uint256 policyId, uint256 amount);
-    event RainfallUpdated(uint256 policyId, uint256 rainfall);
-    event PayoutReleased(uint256 policyId, uint256 amount);
-    event PolicyExpired(uint256 policyId);
-    event OracleUpdated(address newOracle);
-    event ContractFunded(address funder, uint256 amount);
+    event PolicyCreated(address farmer, uint256 insuredAmount, uint256 threshold);
+    event RainfallUpdated(uint256 rainfall);
+    event PayoutTriggered(address farmer, uint256 amount);
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "Not admin");
@@ -54,128 +33,62 @@ contract AgriInsurance {
         _;
     }
 
-    modifier validPolicy(uint256 _policyId) {
-        require(_policyId > 0 && _policyId <= policyCounter, "Invalid policy");
-        _;
+    constructor(address _oracle) {
+        admin = msg.sender;
+        oracle = _oracle;
     }
 
+    // Create a policy (only once)
     function createPolicy(
         address _farmer,
-        string memory _crop,
-        string memory _location,
-        uint256 _seasonStart,
-        uint256 _seasonEnd,
-        uint256 _premium,
         uint256 _insuredAmount,
-        uint256 _minRainfall,
-        uint256 _maxRainfall
+        uint256 _rainfallThreshold
     ) external onlyAdmin {
+        require(!policy.exists, "Policy already exists");
 
-        require(_minRainfall < _maxRainfall, "Invalid rainfall range");
-        require(_seasonStart < _seasonEnd, "Invalid season duration");
-
-        uint256 policyId = ++policyCounter;
-
-        policies[policyId] = Policy({
+        policy = Policy({
             farmer: _farmer,
-            crop: _crop,
-            location: _location,
-            seasonStart: _seasonStart,
-            seasonEnd: _seasonEnd,
-            premium: _premium,
             insuredAmount: _insuredAmount,
-            minRainfall: _minRainfall,
-            maxRainfall: _maxRainfall,
+            rainfallThreshold: _rainfallThreshold,
             recordedRainfall: 0,
-            status: PolicyStatus.Created
+            status: Status.Active,
+            exists: true
         });
 
-        emit PolicyCreated(policyId, _farmer);
+        emit PolicyCreated(_farmer, _insuredAmount, _rainfallThreshold);
     }
 
-    function payPremium(uint256 _policyId)
-        external
-        payable
-        validPolicy(_policyId)
-    {
-        Policy storage policy = policies[_policyId];
+    // Fund contract so payout is possible
+    function fundContract() external payable onlyAdmin {}
 
-        require(msg.sender == policy.farmer, "Not policy owner");
-        require(policy.status == PolicyStatus.Created, "Policy not in Created state");
-        require(msg.value == policy.premium, "Incorrect premium");
-
-        policy.status = PolicyStatus.Active;
-
-        emit PremiumPaid(_policyId, msg.value);
-    }
-
-    function updateRainfall(
-        uint256 _policyId,
-        uint256 _rainfall
-    )
-        external
-        onlyOracle
-        validPolicy(_policyId)
-    {
-        Policy storage policy = policies[_policyId];
-
-        require(policy.status == PolicyStatus.Active, "Policy not active");
-        require(policy.recordedRainfall == 0, "Rainfall already recorded");
+    // Oracle updates rainfall
+    function updateRainfall(uint256 _rainfall) external onlyOracle {
+        require(policy.exists, "No policy");
+        require(policy.status == Status.Active, "Policy not active");
 
         policy.recordedRainfall = _rainfall;
 
-        emit RainfallUpdated(_policyId, _rainfall);
+        emit RainfallUpdated(_rainfall);
+    }
 
-        if (_rainfall < policy.minRainfall || _rainfall > policy.maxRainfall) {
+    // Trigger payout manually after rainfall update
+    function triggerPayout() external {
+        require(policy.exists, "No policy");
+        require(policy.status == Status.Active, "Policy not active");
 
-            policy.status = PolicyStatus.PaidOut;
+        if (policy.recordedRainfall < policy.rainfallThreshold) {
 
-            require(address(this).balance >= policy.insuredAmount, "Insufficient contract balance");
+            policy.status = Status.PaidOut;
+
+            require(address(this).balance >= policy.insuredAmount, "Insufficient funds");
 
             (bool sent, ) = payable(policy.farmer).call{value: policy.insuredAmount}("");
-            require(sent, "Payout failed");
+            require(sent, "Transfer failed");
 
-            emit PayoutReleased(_policyId, policy.insuredAmount);
+            emit PayoutTriggered(policy.farmer, policy.insuredAmount);
         }
     }
 
-    function expirePolicy(uint256 _policyId)
-        external
-        onlyAdmin
-        validPolicy(_policyId)
-    {
-        Policy storage policy = policies[_policyId];
-
-        require(policy.status == PolicyStatus.Active, "Policy not active");
-        require(block.timestamp > policy.seasonEnd, "Season not ended");
-
-        policy.status = PolicyStatus.Expired;
-
-        emit PolicyExpired(_policyId);
-    }
-
-    function setOracle(address _newOracle) external onlyAdmin {
-        require(_newOracle != address(0), "Invalid oracle");
-        oracle = _newOracle;
-
-        emit OracleUpdated(_newOracle);
-    }
-
-    function fundContract() external payable onlyAdmin {
-        require(msg.value > 0, "No funds sent");
-        emit ContractFunded(msg.sender, msg.value);
-    }
-
-    function getPolicy(uint256 _policyId)
-        external
-        view
-        validPolicy(_policyId)
-        returns (Policy memory)
-    {
-        return policies[_policyId];
-    }
-
-    receive() external payable {
-        emit ContractFunded(msg.sender, msg.value);
-    }
+    // Allow contract to receive ETH
+    receive() external payable {}
 }
