@@ -118,6 +118,39 @@
 			},
 			{
 				"inputs": [],
+				"name": "getPolicy",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "farmer",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "insuredAmount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "rainfallThreshold",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "recordedRainfall",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "status",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "oracle",
 				"outputs": [
 					{
@@ -168,13 +201,6 @@
 				"type": "function"
 			},
 			{
-				"inputs": [],
-				"name": "triggerPayout",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
 				"inputs": [
 					{
 						"internalType": "uint256",
@@ -220,11 +246,11 @@
 	},
 	"sources": {
 		"AgriInsurance.sol": {
-			"keccak256": "0x92c9e7f60f1648f303cf010824813ce78196e4d1967ce65c211041060ba50766",
+			"keccak256": "0x1ac853a0b66019a671c86fcab3b7fbf3c4b4cfa6f979531d513b656e5f8c80a2",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://38c42a6bc30845456f2cd57e32df033504619d20b152042bec667595d2863e39",
-				"dweb:/ipfs/QmSV1jC1vnN9f49mqLQvMtA83cxWU4p1XWq9oSgwN9uTkv"
+				"bzz-raw://29aa04120f592101180cd92bf3a213f0f4f552a3cfda41f0be0139f5049aa86c",
+				"dweb:/ipfs/QmeNJKCBV8jLV5doeZVQ88YV7zR9nHqczipSnScBHzXkHt"
 			]
 		}
 	},

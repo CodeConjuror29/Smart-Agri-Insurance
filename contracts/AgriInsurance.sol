@@ -38,7 +38,6 @@ contract SimpleAgriInsurance {
         oracle = _oracle;
     }
 
-    // Create a policy (only once)
     function createPolicy(
         address _farmer,
         uint256 _insuredAmount,
@@ -58,10 +57,9 @@ contract SimpleAgriInsurance {
         emit PolicyCreated(_farmer, _insuredAmount, _rainfallThreshold);
     }
 
-    // Fund contract so payout is possible
     function fundContract() external payable onlyAdmin {}
 
-    // Oracle updates rainfall
+    // 🔥 AUTO PAYOUT HERE
     function updateRainfall(uint256 _rainfall) external onlyOracle {
         require(policy.exists, "No policy");
         require(policy.status == Status.Active, "Policy not active");
@@ -69,14 +67,8 @@ contract SimpleAgriInsurance {
         policy.recordedRainfall = _rainfall;
 
         emit RainfallUpdated(_rainfall);
-    }
 
-    // Trigger payout manually after rainfall update
-    function triggerPayout() external {
-        require(policy.exists, "No policy");
-        require(policy.status == Status.Active, "Policy not active");
-
-        if (policy.recordedRainfall < policy.rainfallThreshold) {
+        if (_rainfall < policy.rainfallThreshold) {
 
             policy.status = Status.PaidOut;
 
@@ -89,6 +81,21 @@ contract SimpleAgriInsurance {
         }
     }
 
-    // Allow contract to receive ETH
+    function getPolicy() external view returns (
+        address farmer,
+        uint256 insuredAmount,
+        uint256 rainfallThreshold,
+        uint256 recordedRainfall,
+        uint256 status
+    ) {
+        return (
+            policy.farmer,
+            policy.insuredAmount,
+            policy.rainfallThreshold,
+            policy.recordedRainfall,
+            uint256(policy.status)
+        );
+    }
+
     receive() external payable {}
 }
